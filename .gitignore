@@ -5,3 +5,6 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# Internal docs
+docs/
