@@ -2,7 +2,7 @@
 
 A visual coin change calculator. Enter a dollar amount — get the minimum coin breakdown with animations. Or count your coins to find the total value.
 
-**Live:** [dollar-2-cents.netlify.app](https://dollar-2-cents.netlify.app)  
+**Live:** [dollartocents.netlify.app](https://dollartocents.netlify.app)  
 **Repo:** [github.com/crackcode09/dollar-2-cents](https://github.com/crackcode09/dollar-2-cents)
 
 ## Features
