@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dollar 2 Cents</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Tokens ─────────────────────────────────── */
+    :root {
+      --bg:      #1C1917;
+      --surface: #231F1C;
+      --muted:   #2C1E16;
+      --border:  rgba(255,255,255,0.08);
+      --fg:      #FFFFFF;
+      --dim:     rgba(255,255,255,0.48);
+      --primary: #EA580C;
+      --accent:  #2563EB;
+      --fh: 'Fredoka', sans-serif;
+      --fb: 'Nunito', sans-serif;
+    }
+
+    /* ── Reset ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: var(--fb);
+      background: var(--bg);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh;
+    }
+    @media (min-width: 1200px) {
+      body { height: 100dvh; overflow: hidden; }
+    }
+
+    /* ── Ambient glow ───────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 55% at 22% -5%, rgba(234,88,12,0.16) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 92% 108%, rgba(37,99,235,0.1) 0%, transparent 60%);
+    }
+
+    /* ── Page ───────────────────────────────────── */
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100dvh;
+      display: flex; flex-direction: column;
+    }
+    @media (min-width: 1200px) { .page { height: 100dvh; } }
+
+    /* ── Topbar ─────────────────────────────────── */
+    .topbar {
+      height: 60px; flex-shrink: 0;
+      display: flex; align-items: center;
+      padding: 0 clamp(1.25rem, 3vw, 2.5rem);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 0.6rem; }
+    .logo-coin {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: radial-gradient(circle at 35% 30%, #F97316, #EA580C, #B45309);
+      box-shadow: 0 2px 10px rgba(234,88,12,0.55),
+                  inset 0 -2px 4px rgba(0,0,0,0.4),
+                  inset 0 2px 4px rgba(255,255,255,0.18);
+    }
+    .logo-name { font-family: var(--fh); font-size: 1.15rem; font-weight: 600; letter-spacing: -0.02em; }
+    .logo-name span { color: var(--primary); }
+
+    /* ── Main grid ──────────────────────────────── */
+    .main { flex: 1 1 0; min-height: 0; display: grid; }
+    @media (min-width: 1200px) {
+      .main { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; overflow: hidden; }
+    }
+    @media (max-width: 1199px) {
+      .main { grid-template-columns: 1fr; overflow: visible; }
+    }
+
+    /* ── Left panel ─────────────────────────────── */
+    .panel-left { display: flex; flex-direction: column; overflow-y: auto; }
+    @media (min-width: 1200px) {
+      .panel-left { justify-content: center; gap: 1.75rem; padding: 3rem clamp(2rem,4vw,4rem); border-right: 1px solid var(--border); }
+    }
+    @media (min-width: 768px) and (max-width: 1199px) {
+      .panel-left { gap: 1.5rem; padding: 2.5rem clamp(2rem,8%,5rem); border-bottom: 1px solid var(--border); }
+    }
+    @media (max-width: 767px) {
+      .panel-left { gap: 1.5rem; padding: 1.75rem 1.25rem 2rem; border-bottom: 1px solid var(--border); }
+    }
+
+    /* ── Mode toggle ────────────────────────────── */
+    .mode-toggle {
+      display: flex;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 3px; gap: 2px;
+      width: fit-content; flex-shrink: 0;
+    }
+    .mode-btn {
+      font-family: var(--fh); font-size: 0.85rem; font-weight: 600;
+      padding: 0.4rem 1.1rem;
+      border: none; border-radius: 9px;
+      background: transparent; color: var(--dim);
+      cursor: pointer; white-space: nowrap;
+      transition: background 200ms ease-out, color 200ms ease-out;
+    }
+    .mode-btn.active { background: var(--primary); color: #fff; }
+    .mode-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+    /* ── Mode views ─────────────────────────────── */
+    .mode-view.hidden { display: none; }
+    @keyframes view-fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .mode-view.entering { animation: view-fade-in 0.3s ease-out forwards; }
+    .mode-view { display: flex; flex-direction: column; gap: 1.75rem; }
+    @media (min-width: 1200px) { .mode-view { gap: 2rem; } }
+
+    /* ── Headline — line-mask reveal ────────────── */
+    .headline {
+      font-family: var(--fh); font-weight: 700;
+      line-height: 0.93; letter-spacing: -0.04em;
+    }
+    @media (min-width: 1200px) { .headline { font-size: clamp(3rem, 5.5vw, 5.5rem); } }
+    @media (min-width: 768px) and (max-width: 1199px) { .headline { font-size: clamp(3.5rem, 7vw, 5rem); } }
+    @media (max-width: 767px) { .headline { font-size: clamp(2.5rem, 10vw, 3.75rem); } }
+
+    .hl  { display: block; overflow: hidden; }
+    .hl-i {
+      display: block; opacity: 0; transform: translateY(105%);
+      animation: line-rise 0.65s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+    .hl:nth-child(1) .hl-i { animation-delay: 0.08s; }
+    .hl:nth-child(2) .hl-i { animation-delay: 0.2s; color: var(--primary); }
+    .hl:nth-child(3) .hl-i { animation-delay: 0.32s; }
+    @keyframes line-rise {
+      from { opacity: 0; transform: translateY(105%); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── D2C input section ──────────────────────── */
+    .input-section {
+      display: flex; flex-direction: column; gap: 0.7rem;
+      opacity: 0;
+      animation: fade-up 0.5s ease-out 0.48s forwards;
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .field-label {
+      font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim);
+    }
+    .input-row {
+      display: flex; align-items: stretch;
+      border: 1.5px solid var(--border); border-radius: 14px;
+      background: var(--surface);
+      transition: border-color 250ms ease-out, box-shadow 250ms ease-out;
+    }
+    .input-row:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(234,88,12,0.18);
+    }
+    .dollar-prefix {
+      display: flex; align-items: center;
+      padding: 0 0.9rem 0 1.15rem; flex-shrink: 0;
+      font-family: var(--fh); font-size: clamp(1.35rem,2.5vw,1.9rem);
+      font-weight: 600; color: var(--primary);
+      background: var(--muted);
+      border-right: 1.5px solid var(--border);
+      border-radius: 12px 0 0 12px;
+      -webkit-user-select: none; user-select: none;
+    }
+    #dollar-input {
+      flex: 1; min-width: 0;
+      border: none; outline: none; background: transparent;
+      color: var(--fg); font-family: var(--fh);
+      font-size: clamp(1.35rem,2.5vw,1.9rem); font-weight: 500;
+      padding: 0.85rem 0.9rem; letter-spacing: -0.02em;
+      -moz-appearance: textfield; appearance: textfield;
+    }
+    #dollar-input::-webkit-outer-spin-button,
+    #dollar-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    #dollar-input::placeholder { color: rgba(255,255,255,0.18); }
+
+    .convert-btn {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0.4rem; padding: 0 1.35rem;
+      min-width: 118px; flex-shrink: 0;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 0 12px 12px 0;
+      font-family: var(--fh); font-size: 1rem; font-weight: 600;
+      letter-spacing: 0.02em; cursor: pointer; white-space: nowrap;
+      transition: background 140ms ease-out, transform 140ms ease-out;
+    }
+    .convert-btn:hover  { background: #1D4ED8; }
+    .convert-btn:active { transform: scale(0.96); }
+    .convert-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .convert-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    .input-hint { font-size: 0.77rem; color: var(--dim); }
+    .error-msg  { display: none; color: #FCA5A5; font-size: 0.8rem; font-weight: 500; }
+    .error-msg.show { display: block; }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-7px); }
+      40%     { transform: translateX(7px); }
+      60%     { transform: translateX(-4px); }
+      80%     { transform: translateX(4px); }
+    }
+    .shake { animation: shake 0.3s ease-out; }
+
+    /* ── C2D coin inputs ────────────────────────── */
+    .ci-section { display: flex; flex-direction: column; gap: 0.75rem; }
+    .ci-rows    { display: flex; flex-direction: column; gap: 0.55rem; }
+
+    .ci-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      transition: border-color 200ms ease-out;
+    }
+    .ci-row:focus-within { border-color: rgba(234,88,12,0.5); }
+    .ci-row .coin-meta { flex: 1; }
+
+    .ci-field {
+      width: 72px; flex-shrink: 0;
+      background: var(--muted);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      color: var(--fg);
+      font-family: var(--fh); font-size: 1.1rem; font-weight: 600;
+      padding: 0.4rem 0.65rem;
+      text-align: right;
+      -moz-appearance: textfield; appearance: textfield;
+      outline: none;
+      transition: border-color 200ms ease-out;
+    }
+    .ci-field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(234,88,12,0.15); }
+    .ci-field::-webkit-outer-spin-button,
+    .ci-field::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .ci-field::placeholder { color: rgba(255,255,255,0.2); }
+
+    .calc-btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      width: 100%; padding: 0.88rem 1.5rem;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 14px;
+      font-family: var(--fh); font-size: 1.05rem; font-weight: 600;
+      letter-spacing: 0.02em; cursor: pointer;
+      transition: background 140ms ease-out, transform 140ms ease-out;
+      margin-top: 0.15rem;
+    }
+    .calc-btn:hover  { background: #C2410C; }
+    .calc-btn:active { transform: scale(0.98); }
+    .calc-btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+    .calc-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    /* ── Right panel ─────────────────────────────── */
+    .panel-right {
+      position: relative;
+      overflow-y: auto; overflow-x: hidden;
+      display: flex; flex-direction: column;
+    }
+    @media (max-width: 1199px) { .panel-right { overflow: visible; } }
+
+    /* ── Empty state ─────────────────────────────── */
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1.25rem; padding: 3.5rem 2rem;
+      pointer-events: none;
+    }
+    .empty-state.gone { display: none; }
+    .ghost-coins { display: flex; align-items: flex-end; gap: 0.7rem; }
+    .gc { border-radius: 50%; opacity: 0.1; }
+    .gc.q { width: 44px; height: 44px; background: radial-gradient(circle at 35% 30%, #C0C8D0, #8A9198); animation: ghost-float 3.5s ease-in-out 0s infinite; }
+    .gc.d { width: 30px; height: 30px; background: radial-gradient(circle at 35% 30%, #D8D4CF, #A09890); animation: ghost-float 3.5s ease-in-out 0.45s infinite; }
+    .gc.n { width: 38px; height: 38px; background: radial-gradient(circle at 35% 30%, #C8C4B8, #9A9488); animation: ghost-float 3.5s ease-in-out 0.9s infinite; }
+    .gc.p { width: 34px; height: 34px; background: radial-gradient(circle at 35% 30%, #E8A87C, #C47843); animation: ghost-float 3.5s ease-in-out 1.35s infinite; }
+    @keyframes ghost-float {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-10px); }
+    }
+    .empty-text { font-family: var(--fh); font-size: 1rem; font-weight: 500; color: rgba(255,255,255,0.15); text-align: center; line-height: 1.45; }
+
+    /* ── Results (shared by both modes) ─────────── */
+    .results {
+      display: none; flex-direction: column; gap: 1.5rem;
+    }
+    @media (min-width: 1200px) { .results { padding: clamp(2rem,4vw,3.5rem) clamp(1.5rem,4vw,3.5rem); } }
+    @media (min-width: 768px) and (max-width: 1199px) { .results { padding: 2.5rem clamp(2rem,8%,5rem); } }
+    @media (max-width: 767px) { .results { padding: 2rem 1.25rem; } }
+
+    .results.visible {
+      display: flex;
+      animation: results-enter 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+    @keyframes results-enter {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @media (min-width: 1200px) {
+      @keyframes results-enter {
+        from { opacity: 0; transform: translateX(16px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+    }
+
+    /* Total block */
+    .total-section { padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+    .section-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.4rem; }
+    .coins-heading { margin-bottom: 1rem; }
+    .total-row { display: flex; align-items: flex-end; gap: 0.4rem; }
+    .total-num {
+      font-family: var(--fh); font-size: clamp(3rem,6vw,5rem);
+      font-weight: 700; line-height: 1; letter-spacing: -0.04em;
+      color: var(--primary); display: inline-block;
+    }
+    .total-sym {
+      font-family: var(--fh); font-size: clamp(1.3rem,2.5vw,1.8rem);
+      font-weight: 600; color: rgba(234,88,12,0.42); padding-bottom: 0.3rem;
+    }
+    @keyframes total-pop {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.12); }
+      70%  { transform: scale(0.96); }
+      100% { transform: scale(1); }
+    }
+    .total-num.pop { animation: total-pop 0.42s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+    /* Subtle subtitle under total */
+    .total-sub { font-size: 0.82rem; color: var(--dim); font-weight: 500; margin-top: 0.3rem; }
+
+    /* Coin rows (shared) */
+    .coin-rows { display: flex; flex-direction: column; gap: 0.9rem; }
+    .coin-row {
+      display: flex; align-items: center; gap: 0.7rem;
+      opacity: 0; transform: translateY(14px);
+      transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    }
+    .coin-row.in  { opacity: 1; transform: translateY(0); }
+    .coin-row.zero { opacity: 0.22; }
+    .coin-row.zero.in { opacity: 0.22; }
+
+    /* Coin icon */
+    .coin-icon {
+      flex-shrink: 0; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--fh); font-weight: 700; color: rgba(0,0,0,0.6);
+      font-size: 0.58rem; position: relative; overflow: hidden;
+    }
+    .coin-icon::after {
+      content: '';
+      position: absolute; top: 12%; left: 16%; width: 42%; height: 28%;
+      background: rgba(255,255,255,0.3); border-radius: 50%; filter: blur(2px);
+    }
+    @keyframes coin-flip-in {
+      0%   { transform: perspective(500px) rotateY(90deg) scale(0.5); opacity: 0; }
+      100% { transform: perspective(500px) rotateY(0deg)  scale(1);   opacity: 1; }
+    }
+    .coin-icon.flip { animation: coin-flip-in 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    .coin-icon.quarter { width: 42px; height: 42px; background: radial-gradient(circle at 35% 30%, #C0C8D0, #8A9198, #6B7280); box-shadow: 0 3px 12px rgba(139,145,152,0.45), inset 0 -2px 5px rgba(0,0,0,0.45), inset 0 2px 5px rgba(255,255,255,0.2); }
+    .coin-icon.dime    { width: 30px; height: 30px; background: radial-gradient(circle at 35% 30%, #D8D4CF, #A09890, #7D7068); box-shadow: 0 3px 12px rgba(160,152,144,0.45), inset 0 -2px 5px rgba(0,0,0,0.45), inset 0 2px 5px rgba(255,255,255,0.2); }
+    .coin-icon.nickel  { width: 38px; height: 38px; background: radial-gradient(circle at 35% 30%, #C8C4B8, #9A9488, #7A7468); box-shadow: 0 3px 12px rgba(154,148,136,0.45), inset 0 -2px 5px rgba(0,0,0,0.45), inset 0 2px 5px rgba(255,255,255,0.2); }
+    .coin-icon.penny   { width: 36px; height: 36px; background: radial-gradient(circle at 35% 30%, #E8A87C, #C47843, #A05828); box-shadow: 0 3px 12px rgba(196,120,67,0.45), inset 0 -2px 5px rgba(0,0,0,0.45), inset 0 2px 5px rgba(255,255,255,0.2); }
+
+    .coin-meta { flex: 0 0 88px; }
+    .coin-name { font-family: var(--fh); font-size: 0.92rem; font-weight: 600; line-height: 1.2; }
+    .coin-val  { font-size: 0.68rem; color: var(--dim); font-weight: 500; }
+
+    /* D2C pips */
+    .coin-pips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    @keyframes pip-bounce-in {
+      0%   { opacity: 0; transform: translateY(-18px) scale(0.3); }
+      55%  { opacity: 1; transform: translateY(4px)   scale(1.2); }
+      80%  {             transform: translateY(-2px)  scale(0.9); }
+      100% { opacity: 1; transform: translateY(0)     scale(1); }
+    }
+    .pip { border-radius: 50%; flex-shrink: 0; opacity: 0; }
+    .pip.drop { animation: pip-bounce-in 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    .pip.quarter { width: 13px; height: 13px; background: radial-gradient(circle at 35% 30%, #C0C8D0, #8A9198); }
+    .pip.dime    { width:  9px; height:  9px; background: radial-gradient(circle at 35% 30%, #D8D4CF, #A09890); }
+    .pip.nickel  { width: 12px; height: 12px; background: radial-gradient(circle at 35% 30%, #C8C4B8, #9A9488); }
+    .pip.penny   { width: 11px; height: 11px; background: radial-gradient(circle at 35% 30%, #E8A87C, #C47843); }
+    .pip-overflow { font-size: 0.65rem; color: var(--dim); font-weight: 600; }
+
+    .coin-count { font-family: var(--fh); font-size: clamp(1.3rem,2.5vw,1.75rem); font-weight: 700; letter-spacing: -0.03em; min-width: 3ch; text-align: right; flex-shrink: 0; }
+    .coin-count.zero { color: var(--dim); }
+
+    /* C2D value row extras */
+    .vr-mult {
+      font-family: var(--fh); font-size: 0.92rem; font-weight: 600;
+      color: var(--dim); flex-shrink: 0; white-space: nowrap;
+    }
+    .vr-amount {
+      font-family: var(--fh); font-size: clamp(1.1rem,2vw,1.4rem);
+      font-weight: 700; letter-spacing: -0.03em;
+      min-width: 5ch; text-align: right; flex-shrink: 0;
+      margin-left: auto;
+    }
+    .vr-amount.zero { color: var(--dim); }
+
+    /* Summary */
+    .summary-row {
+      display: flex; align-items: center; gap: 0.45rem;
+      padding-top: 1.25rem; border-top: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--dim);
+    }
+    .summary-row strong { color: var(--fg); font-weight: 700; }
+    .dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.18); flex-shrink: 0; }
+
+    /* ── Coin rain ───────────────────────────────── */
+    .crp {
+      position: absolute; border-radius: 50%;
+      pointer-events: none; z-index: 20;
+      will-change: transform, opacity;
+    }
+    @keyframes coin-fall {
+      0%   { opacity: 0;   transform: translateY(-8px)   rotate(0deg)   scale(0.4); }
+      12%  { opacity: 1; }
+      88%  { opacity: 0.5; }
+      100% { opacity: 0;   transform: translateY(200px)  rotate(600deg) scale(0.9); }
+    }
+
+    /* ── SR / a11y ───────────────────────────────── */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    /* ── Reduced motion ─────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+
+    /* ── Narrow mobile ──────────────────────────── */
+    @media (max-width: 400px) {
+      .coin-pips { display: none; }
+      .coin-meta { flex: 0 0 76px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-coin" aria-hidden="true"></div>
+      <span class="logo-name">Dollar<span>2</span>Cents</span>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ── Left panel ─────────────────────────── -->
+    <section class="panel-left" aria-label="Input">
+
+      <!-- Mode toggle -->
+      <div class="mode-toggle" role="group" aria-label="Calculator mode">
+        <button type="button" class="mode-btn active" data-mode="d2c">$ → Coins</button>
+        <button type="button" class="mode-btn"        data-mode="c2d">Coins → $</button>
+      </div>
+
+      <!-- ── View: Dollar to Coins ── -->
+      <div class="mode-view" id="view-d2c" aria-label="Dollar to coins">
+        <h1 class="headline">
+          <span class="hl"><span class="hl-i">Turn</span></span>
+          <span class="hl"><span class="hl-i">dollars</span></span>
+          <span class="hl"><span class="hl-i">to coins.</span></span>
+        </h1>
+
+        <div class="input-section">
+          <label class="field-label" for="dollar-input">Enter dollar amount</label>
+          <div class="input-row" id="input-row">
+            <span class="dollar-prefix" aria-hidden="true">$</span>
+            <input
+              type="number" id="dollar-input"
+              min="0" step="0.01" placeholder="2.75"
+              inputmode="decimal" autocomplete="off"
+              aria-label="Dollar amount"
+              aria-describedby="d2c-hint d2c-error"
+            >
+            <button type="button" class="convert-btn" id="convert-btn">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 10h12M12 5l5 5-5 5"/>
+              </svg>
+              Convert
+            </button>
+          </div>
+          <p id="d2c-hint" class="input-hint">Try $0.58 → 2 quarters, 1 nickel, 3 pennies</p>
+          <p id="d2c-error" class="error-msg" role="alert"></p>
+        </div>
+      </div>
+
+      <!-- ── View: Coins to Dollar ── -->
+      <div class="mode-view hidden" id="view-c2d" aria-label="Coins to dollar">
+        <h1 class="headline">
+          Count<br>
+          <em style="color:var(--primary);font-style:normal">your</em><br>
+          coins.
+        </h1>
+
+        <div class="ci-section">
+          <p class="field-label" id="ci-label">Enter coin counts</p>
+          <div class="ci-rows" role="group" aria-labelledby="ci-label">
+
+            <div class="ci-row">
+              <div class="coin-icon quarter" aria-hidden="true">25¢</div>
+              <div class="coin-meta">
+                <div class="coin-name">Quarter</div>
+                <div class="coin-val">$0.25 each</div>
+              </div>
+              <input type="number" id="ci-quarter" class="ci-field" min="0" step="1" placeholder="0" inputmode="numeric" autocomplete="off" aria-label="Number of quarters">
+            </div>
+
+            <div class="ci-row">
+              <div class="coin-icon dime" aria-hidden="true">10¢</div>
+              <div class="coin-meta">
+                <div class="coin-name">Dime</div>
+                <div class="coin-val">$0.10 each</div>
+              </div>
+              <input type="number" id="ci-dime" class="ci-field" min="0" step="1" placeholder="0" inputmode="numeric" autocomplete="off" aria-label="Number of dimes">
+            </div>
+
+            <div class="ci-row">
+              <div class="coin-icon nickel" aria-hidden="true">5¢</div>
+              <div class="coin-meta">
+                <div class="coin-name">Nickel</div>
+                <div class="coin-val">$0.05 each</div>
+              </div>
+              <input type="number" id="ci-nickel" class="ci-field" min="0" step="1" placeholder="0" inputmode="numeric" autocomplete="off" aria-label="Number of nickels">
+            </div>
+
+            <div class="ci-row">
+              <div class="coin-icon penny" aria-hidden="true">1¢</div>
+              <div class="coin-meta">
+                <div class="coin-name">Penny</div>
+                <div class="coin-val">$0.01 each</div>
+              </div>
+              <input type="number" id="ci-penny" class="ci-field" min="0" step="1" placeholder="0" inputmode="numeric" autocomplete="off" aria-label="Number of pennies">
+            </div>
+
+          </div>
+
+          <button type="button" class="calc-btn" id="calc-btn">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 10h14M10 3l7 7-7 7"/>
+            </svg>
+            Calculate Total
+          </button>
+          <p id="c2d-error" class="error-msg" role="alert"></p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── Right panel ─────────────────────────── -->
+    <aside class="panel-right" id="panel-right" aria-label="Results" aria-live="polite" aria-atomic="false">
+
+      <!-- Empty state -->
+      <div class="empty-state" id="empty-state" aria-hidden="true">
+        <div class="ghost-coins">
+          <div class="gc q"></div>
+          <div class="gc d"></div>
+          <div class="gc n"></div>
+          <div class="gc p"></div>
+        </div>
+        <p class="empty-text">Your results<br>appear here</p>
+      </div>
+
+      <!-- ── D2C results ── -->
+      <div class="results" id="results-d2c">
+
+        <div class="total-section">
+          <p class="section-label">Total cents</p>
+          <div class="total-row">
+            <span class="total-num" id="d2c-total">0</span>
+            <span class="total-sym">¢</span>
+          </div>
+        </div>
+
+        <div>
+          <p class="section-label coins-heading">Minimum coins</p>
+          <div class="coin-rows">
+
+            <div class="coin-row" id="row-quarter">
+              <div class="coin-icon quarter" id="icon-quarter" aria-hidden="true">25¢</div>
+              <div class="coin-meta"><div class="coin-name">Quarter</div><div class="coin-val">$0.25 each</div></div>
+              <div class="coin-pips" id="pips-quarter" aria-hidden="true"></div>
+              <div class="coin-count" id="count-quarter">0</div>
+            </div>
+
+            <div class="coin-row" id="row-dime">
+              <div class="coin-icon dime" id="icon-dime" aria-hidden="true">10¢</div>
+              <div class="coin-meta"><div class="coin-name">Dime</div><div class="coin-val">$0.10 each</div></div>
+              <div class="coin-pips" id="pips-dime" aria-hidden="true"></div>
+              <div class="coin-count" id="count-dime">0</div>
+            </div>
+
+            <div class="coin-row" id="row-nickel">
+              <div class="coin-icon nickel" id="icon-nickel" aria-hidden="true">5¢</div>
+              <div class="coin-meta"><div class="coin-name">Nickel</div><div class="coin-val">$0.05 each</div></div>
+              <div class="coin-pips" id="pips-nickel" aria-hidden="true"></div>
+              <div class="coin-count" id="count-nickel">0</div>
+            </div>
+
+            <div class="coin-row" id="row-penny">
+              <div class="coin-icon penny" id="icon-penny" aria-hidden="true">1¢</div>
+              <div class="coin-meta"><div class="coin-name">Penny</div><div class="coin-val">$0.01 each</div></div>
+              <div class="coin-pips" id="pips-penny" aria-hidden="true"></div>
+              <div class="coin-count" id="count-penny">0</div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="summary-row">
+          <strong id="d2c-coin-total">0</strong> coins total
+          <span class="dot" aria-hidden="true"></span>
+          fewest possible
+        </div>
+
+      </div>
+
+      <!-- ── C2D results ── -->
+      <div class="results" id="results-c2d">
+
+        <div class="total-section">
+          <p class="section-label">Total value</p>
+          <div class="total-row">
+            <span class="total-sym">$</span>
+            <span class="total-num" id="c2d-amount">0.00</span>
+          </div>
+          <p class="total-sub" id="c2d-cents-line">= 0¢</p>
+        </div>
+
+        <div>
+          <p class="section-label coins-heading">Coin breakdown</p>
+          <div class="coin-rows">
+
+            <div class="coin-row" id="vrow-quarter">
+              <div class="coin-icon quarter" id="vicon-quarter" aria-hidden="true">25¢</div>
+              <div class="coin-meta"><div class="coin-name">Quarter</div><div class="coin-val">$0.25 each</div></div>
+              <div class="vr-mult" id="vm-quarter">× 0</div>
+              <div class="vr-amount" id="va-quarter">$0.00</div>
+            </div>
+
+            <div class="coin-row" id="vrow-dime">
+              <div class="coin-icon dime" id="vicon-dime" aria-hidden="true">10¢</div>
+              <div class="coin-meta"><div class="coin-name">Dime</div><div class="coin-val">$0.10 each</div></div>
+              <div class="vr-mult" id="vm-dime">× 0</div>
+              <div class="vr-amount" id="va-dime">$0.00</div>
+            </div>
+
+            <div class="coin-row" id="vrow-nickel">
+              <div class="coin-icon nickel" id="vicon-nickel" aria-hidden="true">5¢</div>
+              <div class="coin-meta"><div class="coin-name">Nickel</div><div class="coin-val">$0.05 each</div></div>
+              <div class="vr-mult" id="vm-nickel">× 0</div>
+              <div class="vr-amount" id="va-nickel">$0.00</div>
+            </div>
+
+            <div class="coin-row" id="vrow-penny">
+              <div class="coin-icon penny" id="vicon-penny" aria-hidden="true">1¢</div>
+              <div class="coin-meta"><div class="coin-name">Penny</div><div class="coin-val">$0.01 each</div></div>
+              <div class="vr-mult" id="vm-penny">× 0</div>
+              <div class="vr-amount" id="va-penny">$0.00</div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="summary-row">
+          <strong id="c2d-count">0</strong> coins on hand
+          <span class="dot" aria-hidden="true"></span>
+          <strong id="c2d-cents-total">0</strong>¢
+        </div>
+
+      </div>
+
+    </aside>
+
+  </main>
+</div>
+
+<div class="sr-only" id="sr-announce" aria-live="assertive" aria-atomic="true"></div>
+
+<script>
+  /* ── Constants ──────────────────────────────── */
+  const QUARTER = 25, DIME = 10, NICKEL = 5, PENNY = 1;
+  const D2C_COINS = [
+    { value: QUARTER, key: 'quarter' },
+    { value: DIME,    key: 'dime'    },
+    { value: NICKEL,  key: 'nickel'  },
+    { value: PENNY,   key: 'penny'   },
+  ];
+  const C2D_COINS = [
+    { value: QUARTER, key: 'quarter', inputId: 'ci-quarter' },
+    { value: DIME,    key: 'dime',    inputId: 'ci-dime'    },
+    { value: NICKEL,  key: 'nickel',  inputId: 'ci-nickel'  },
+    { value: PENNY,   key: 'penny',   inputId: 'ci-penny'   },
+  ];
+  const MAX_PIPS = 20;
+  const RAIN = [
+    { bg: 'radial-gradient(circle at 35% 30%,#C0C8D0,#8A9198)', s: 14 },
+    { bg: 'radial-gradient(circle at 35% 30%,#E8A87C,#C47843)', s: 11 },
+    { bg: 'radial-gradient(circle at 35% 30%,#F97316,#EA580C)', s: 10 },
+    { bg: 'radial-gradient(circle at 35% 30%,#C8C4B8,#9A9488)', s: 12 },
+  ];
+
+  /* ── DOM ────────────────────────────────────── */
+  const $inp       = document.getElementById('dollar-input');
+  const $convertBtn= document.getElementById('convert-btn');
+  const $irow      = document.getElementById('input-row');
+  const $d2cErr    = document.getElementById('d2c-error');
+  const $calcBtn   = document.getElementById('calc-btn');
+  const $c2dErr    = document.getElementById('c2d-error');
+
+  const $resultsD2C = document.getElementById('results-d2c');
+  const $resultsC2D = document.getElementById('results-c2d');
+  const $empty      = document.getElementById('empty-state');
+  const $panelR     = document.getElementById('panel-right');
+  const $sr         = document.getElementById('sr-announce');
+
+  const $d2cTotal   = document.getElementById('d2c-total');
+  const $d2cCoinTot = document.getElementById('d2c-coin-total');
+  const $c2dAmount  = document.getElementById('c2d-amount');
+  const $c2dCentsLine = document.getElementById('c2d-cents-line');
+  const $c2dCount   = document.getElementById('c2d-count');
+  const $c2dCentsTotal = document.getElementById('c2d-cents-total');
+
+  const $viewD2C = document.getElementById('view-d2c');
+  const $viewC2D = document.getElementById('view-c2d');
+  const $modeBtns = document.querySelectorAll('.mode-btn');
+
+  let mode = 'd2c';
+  let d2cDone = false;
+  let c2dDone = false;
+
+  /* ── Mode switching ─────────────────────────── */
+  $modeBtns.forEach(btn => btn.addEventListener('click', () => switchMode(btn.dataset.mode)));
+
+  function switchMode(next) {
+    if (next === mode) return;
+    mode = next;
+
+    $modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === next));
+
+    const incoming = next === 'd2c' ? $viewD2C : $viewC2D;
+    const outgoing = next === 'd2c' ? $viewC2D : $viewD2C;
+
+    outgoing.classList.add('hidden');
+    incoming.classList.remove('hidden');
+    incoming.classList.remove('entering');
+    void incoming.offsetWidth;
+    incoming.classList.add('entering');
+
+    /* Swap results without re-animating */
+    $resultsD2C.classList.remove('visible');
+    $resultsC2D.classList.remove('visible');
+
+    if (next === 'd2c' && d2cDone) {
+      $empty.classList.add('gone');
+      $resultsD2C.style.display = 'flex';
+    } else if (next === 'c2d' && c2dDone) {
+      $empty.classList.add('gone');
+      $resultsC2D.style.display = 'flex';
+    } else {
+      $empty.classList.remove('gone');
+      $resultsD2C.style.display = '';
+      $resultsC2D.style.display = '';
+    }
+  }
+
+  /* ── Helpers ────────────────────────────────── */
+  function toCents(n)  { return Math.round(n * 100); }
+
+  function makeChange(cents) {
+    const out = {}; let rem = cents;
+    for (const { value, key } of D2C_COINS) { out[key] = Math.floor(rem / value); rem %= value; }
+    return out;
+  }
+
+  function countUp(el, target, ms, done) {
+    const t0 = performance.now();
+    const from = parseInt(el.textContent, 10) || 0;
+    const diff = target - from;
+    (function step(now) {
+      const p = Math.min((now - t0) / ms, 1);
+      el.textContent = Math.round(from + diff * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step);
+      else if (done) done();
+    })(t0);
+  }
+
+  function countUpDollars(el, targetCents, ms, done) {
+    const t0 = performance.now();
+    const fromCents = Math.round(parseFloat(el.textContent) * 100) || 0;
+    const diff = targetCents - fromCents;
+    (function step(now) {
+      const p = Math.min((now - t0) / ms, 1);
+      const cur = Math.round(fromCents + diff * (1 - Math.pow(1 - p, 3)));
+      el.textContent = (cur / 100).toFixed(2);
+      if (p < 1) requestAnimationFrame(step);
+      else if (done) done();
+    })(t0);
+  }
+
+  function renderPips(id, key, n) {
+    const c = document.getElementById(id);
+    c.innerHTML = '';
+    if (!n) return;
+    const show = Math.min(n, MAX_PIPS);
+    for (let i = 0; i < show; i++) {
+      const d = document.createElement('div');
+      d.className = `pip ${key}`;
+      c.appendChild(d);
+      setTimeout(() => d.classList.add('drop'), 90 + i * 28);
+    }
+    if (n > MAX_PIPS) {
+      const s = document.createElement('span');
+      s.className = 'pip-overflow';
+      s.textContent = `+${n - MAX_PIPS}`;
+      c.appendChild(s);
+    }
+  }
+
+  function coinRain() {
+    for (let i = 0; i < 8; i++) {
+      const r   = RAIN[i % RAIN.length];
+      const el  = document.createElement('div');
+      el.className = 'crp';
+      const dur = (0.65 + Math.random() * 0.3).toFixed(2);
+      const del = (i * 0.07).toFixed(2);
+      el.style.cssText = [
+        `left:${12 + Math.random() * 76}%`, `top:0`,
+        `width:${r.s}px`, `height:${r.s}px`,
+        `background:${r.bg}`,
+        `box-shadow:0 2px 6px rgba(0,0,0,0.5)`,
+        `animation:coin-fall ${dur}s ease-in ${del}s forwards`,
+      ].join(';');
+      $panelR.appendChild(el);
+      el.addEventListener('animationend', () => el.remove(), { once: true });
+    }
+  }
+
+  function triggerPop(el) {
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+    el.addEventListener('animationend', () => el.classList.remove('pop'), { once: true });
+  }
+
+  function showResultsPanel(panel) {
+    $empty.classList.add('gone');
+    panel.style.display = '';
+    panel.classList.remove('visible');
+    void panel.offsetWidth;
+    panel.classList.add('visible');
+  }
+
+  function showErr(errEl, shakEl, msg) {
+    errEl.textContent = msg; errEl.classList.add('show');
+    shakEl.classList.remove('shake');
+    void shakEl.offsetWidth;
+    shakEl.classList.add('shake');
+    shakEl.addEventListener('animationend', () => shakEl.classList.remove('shake'), { once: true });
+  }
+  function clearErr(errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+
+  /* ── D2C: Dollar → Coins ────────────────────── */
+  function convert() {
+    const raw = parseFloat($inp.value);
+    if (isNaN(raw) || raw < 0)  { return showErr($d2cErr, $irow, 'Enter a positive dollar amount (e.g. 2.75)'); }
+    if (raw > 999999.99)         { return showErr($d2cErr, $irow, 'Max $999,999.99'); }
+    clearErr($d2cErr);
+
+    const cents  = toCents(raw);
+    const change = makeChange(cents);
+    const total  = Object.values(change).reduce((a, b) => a + b, 0);
+
+    d2cDone = true;
+    $resultsC2D.style.display = '';
+    showResultsPanel($resultsD2C);
+
+    countUp($d2cTotal, cents, 520, () => triggerPop($d2cTotal));
+    $d2cCoinTot.textContent = total;
+    coinRain();
+
+    D2C_COINS.forEach(({ key }, i) => {
+      const row  = document.getElementById(`row-${key}`);
+      const icon = document.getElementById(`icon-${key}`);
+      const num  = document.getElementById(`count-${key}`);
+      row.classList.remove('in', 'zero'); icon.classList.remove('flip');
+      countUp(num, change[key], 360);
+      num.classList.toggle('zero', change[key] === 0);
+      renderPips(`pips-${key}`, key, change[key]);
+      setTimeout(() => {
+        row.classList.add('in');
+        if (change[key] === 0) row.classList.add('zero');
+        if (change[key] > 0) {
+          void icon.offsetWidth; icon.classList.add('flip');
+          icon.addEventListener('animationend', () => icon.classList.remove('flip'), { once: true });
+        }
+      }, i * 70);
+    });
+
+    $sr.textContent = `${cents} cents: ${change.quarter} quarters, ${change.dime} dimes, ${change.nickel} nickels, ${change.penny} pennies. ${total} coins total.`;
+  }
+
+  /* ── C2D: Coins → Dollar ────────────────────── */
+  function calcTotal() {
+    const counts = {};
+    let totalCoins = 0;
+    for (const { key, inputId } of C2D_COINS) {
+      const v = parseInt(document.getElementById(inputId).value, 10);
+      counts[key] = (isNaN(v) || v < 0) ? 0 : v;
+      totalCoins += counts[key];
+    }
+    if (totalCoins === 0) { return showErr($c2dErr, document.querySelector('.ci-rows'), 'Enter at least one coin'); }
+    clearErr($c2dErr);
+
+    const totalCents =
+      counts.quarter * QUARTER +
+      counts.dime    * DIME    +
+      counts.nickel  * NICKEL  +
+      counts.penny   * PENNY;
+
+    c2dDone = true;
+    $resultsD2C.style.display = '';
+    showResultsPanel($resultsC2D);
+
+    countUpDollars($c2dAmount, totalCents, 520, () => triggerPop($c2dAmount));
+    $c2dCentsLine.textContent  = `= ${totalCents}¢`;
+    $c2dCount.textContent      = totalCoins;
+    $c2dCentsTotal.textContent = totalCents;
+    coinRain();
+
+    C2D_COINS.forEach(({ value, key }, i) => {
+      const row   = document.getElementById(`vrow-${key}`);
+      const icon  = document.getElementById(`vicon-${key}`);
+      const vmEl  = document.getElementById(`vm-${key}`);
+      const vaEl  = document.getElementById(`va-${key}`);
+      const n     = counts[key];
+      const amtCents = n * value;
+
+      row.classList.remove('in', 'zero'); icon.classList.remove('flip');
+      vmEl.textContent = `× ${n}`;
+      vaEl.textContent = '$' + (amtCents / 100).toFixed(2);
+      vaEl.classList.toggle('zero', n === 0);
+
+      setTimeout(() => {
+        row.classList.add('in');
+        if (n === 0) row.classList.add('zero');
+        if (n > 0) {
+          void icon.offsetWidth; icon.classList.add('flip');
+          icon.addEventListener('animationend', () => icon.classList.remove('flip'), { once: true });
+        }
+      }, i * 70);
+    });
+
+    $sr.textContent =
+      `Total value: $${(totalCents / 100).toFixed(2)}, ${totalCents} cents. ` +
+      `${counts.quarter} quarters, ${counts.dime} dimes, ${counts.nickel} nickels, ${counts.penny} pennies. ` +
+      `${totalCoins} coins total.`;
+  }
+
+  /* ── Events ─────────────────────────────────── */
+  $convertBtn.addEventListener('click', convert);
+  $inp.addEventListener('keydown', e => e.key === 'Enter' && convert());
+  $inp.addEventListener('input', () => clearErr($d2cErr));
+
+  $calcBtn.addEventListener('click', calcTotal);
+  C2D_COINS.forEach(({ inputId }) => {
+    document.getElementById(inputId).addEventListener('keydown', e => e.key === 'Enter' && calcTotal());
+    document.getElementById(inputId).addEventListener('input', () => clearErr($c2dErr));
+  });
+</script>
+</body>
+</html>
